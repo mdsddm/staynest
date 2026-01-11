@@ -6,6 +6,8 @@ const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const { log } = require("console");
+const wrapAsync = require("./utils/wrapAsync.js");
+const ExpressError = require("./utils/ExpressError.js");
 const MONGO_URL = 'mongodb://127.0.0.1:27017/staynest';
 
 
@@ -30,65 +32,63 @@ app.engine("ejs", ejsMate);
 app.get("/", (req, res) => {
     res.send("<h1>Home directory</h1>");
 });
-app.get("/listings", async (req, res) => {
+app.get("/listings", wrapAsync(async (req, res) => {
     const allListings = await Listing.find({});
     res.render("listings/index.ejs", { allListings });
-});
+}));
 
 // new route
-app.get("/listings/new", async (req, res) => {
+app.get("/listings/new", wrapAsync(async (req, res) => {
     res.render("listings/new.ejs");
-});
+}));
 // new post route
-app.post("/listings", async (req, res) => {
+app.post("/listings", wrapAsync(async (req, res, next) => {
+    if (!req.body.listing) {
+        throw new ExpressError(400, "Send valid data for listing")
+    }
     const newListing = new Listing(req.body.listing);
-    await newListing.save()
-        .then(() => {
-            console.log('Successfully added new listing !!');
-        }).catch(() => {
-            console.log('something went wrong !!');
-        })
+    await newListing.save();
     res.redirect("/listings");
-});
+}));
 
 // show route
-app.get("/listings/:id", async (req, res) => {
+app.get("/listings/:id", wrapAsync(async (req, res) => {
     let { id } = req.params;
     const listing = await Listing.findById(id);
     res.render("listings/show.ejs", { listing });
-});
+}));
 
 //edit route
-app.get("/listings/:id/edit", async (req, res) => {
+app.get("/listings/:id/edit", wrapAsync(async (req, res) => {
     let { id } = req.params;
     const listing = await Listing.findById(id);
     res.render("listings/edit.ejs", { listing });
-})
+}))
 // edit put route
-app.put("/listings/:id", async (req, res) => {
+app.put("/listings/:id", wrapAsync(async (req, res) => {
     let { id } = req.params;
     await Listing.findByIdAndUpdate(id, { ...req.body.listing })
-        .then(() => {
-            console.log('Edited Successfully !!');
-        }).catch(() => {
-            console.log('Something went wrong !!');
-        })
     res.redirect(`/listings/${id}`);
-});
+}));
 
 // delete route
-app.delete("/listings/:id", async (req, res) => {
+app.delete("/listings/:id", wrapAsync(async (req, res) => {
     let { id } = req.params;
     await Listing.findByIdAndDelete(id)
-        .then(() => {
-            console.log('Successfully deleted !!');
-        }).catch(() => {
-            console.log('Something went wrong !!');
-        })
     res.redirect("/listings");
+}))
+
+
+
+// Using ExpressError
+app.use((req, res, next) => {
+    next(new ExpressError(404, "Page not Found!"));
 })
-
-
+// middleware to handle error 
+app.use((err, req, res, next) => {
+    let { statusCode = 500, message = "Something went Wrong!" } = err;
+    res.status(statusCode).render("error.ejs", { message });
+})
 
 
 
