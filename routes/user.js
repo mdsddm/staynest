@@ -4,9 +4,11 @@ const User = require("../models/user.js");
 const wrapAsync = require("../utils/wrapAsync");
 const passport = require("passport");
 
+// Signup Get Route
 router.get("/signup", (req, res) => {
   res.render("users/signup.ejs");
 });
+// Signup Get Route
 router.post(
   "/signup",
   wrapAsync(async (req, res) => {
@@ -22,9 +24,12 @@ router.post(
     }
   }),
 );
+
+// Login Get Route
 router.get("/login", (req, res) => {
   res.render("users/login.ejs");
 });
+// Login Post Route
 router.post(
   "/login",
   passport.authenticate("local", {
@@ -36,4 +41,14 @@ router.post(
     res.redirect("/listings");
   },
 );
+// Logout Route
+router.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err);
+    }
+    req.flash("success", "You are logged out!");
+    res.redirect("/listings");
+  });
+});
 module.exports = router;
